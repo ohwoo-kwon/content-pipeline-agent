@@ -9,6 +9,11 @@ class ContentPipelineState(BaseModel):
     
     # Internal
     max_length: int = 0
+    score: int = 0
+
+    blog_post: str = ""
+    tweet_post: str = ""
+    linkedin_post: str = ""
 
 class ContentPipelineFlow(Flow[ContentPipelineState]):
 
@@ -33,7 +38,7 @@ class ContentPipelineFlow(Flow[ContentPipelineState]):
         return True
     
     @router(conduct_research)
-    def router(self):
+    def conduct_research_router(self):
         content_type = self.state.content_type
 
         if content_type == "blog":
@@ -43,15 +48,15 @@ class ContentPipelineFlow(Flow[ContentPipelineState]):
         elif content_type == "linkedin":
             return "make_linkedin"
     
-    @listen("make_blog")
+    @listen(or_("make_blog", "redo_blog"))
     def handle_make_blog(self):
         print("Making blog...")
     
-    @listen("make_tweet")
+    @listen(or_("make_tweet", "redo_tweet"))
     def handle_make_tweet(self):
         print("Making tweet...")
     
-    @listen("make_linkedin")
+    @listen(or_("make_linkedin", "redo_linkedin"))
     def handle_make_linkedin(self):
         print("Making linkedin...")
     
@@ -63,7 +68,23 @@ class ContentPipelineFlow(Flow[ContentPipelineState]):
     def check_virality(self):
         print("Checking virality...")
 
-    @listen(or_(check_virality, check_seo))
+    @router(or_(check_seo, check_virality))
+    def score_router(self):
+
+        content_type = self.state.content_type
+        score = self.state.score
+
+        if score >= 8:
+            return "check_passed"
+        else:
+            if content_type == "blog":
+                return "redo_blog"
+            elif content_type == 'linkedin':
+                return "redo_linkedin"
+            elif content_type == 'tweet':
+                return 'redo_tweet'
+
+    @listen("check_passed")
     def finalize_content(self):
         print("Finalizing content")
 
